@@ -365,8 +365,19 @@ a.inbox-org { color: var(--accent); text-decoration: none; min-height: 44px; dis
 
 /* device */
 .dev-slot { position: relative; flex: none; }
-.dev { position: absolute; top: 0; left: 0; transform-origin: 0 0; background: var(--device); border-radius: 40px; padding: 10px; }
-.dev-screen { position: relative; overflow: hidden; border-radius: 30px; background: var(--sf-bg); color: var(--sf-fg); font-family: var(--font); }
+/* Duo body: dark metal frame with a thin lit edge (same material as the fold simulation), thin black bezel */
+.dev { position: absolute; top: 0; left: 0; transform-origin: 0 0; border-radius: 44px; padding: 10px;
+  background: linear-gradient(150deg, #5a5e68 0%, #2a2c32 22%, #17181c 60%, #3b3e46 100%);
+  box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.2), 0 18px 40px -18px rgba(0,0,0,.45); }
+.dev-screen { position: relative; overflow: hidden; border-radius: 34px; background: var(--sf-bg); color: var(--sf-fg); font-family: var(--font); box-shadow: 0 0 0 4px #050506; }
+/* folded: the hinge is the left edge — tight corners and a lit spine there */
+.dev-folded { border-radius: 16px 46px 46px 16px; }
+.dev-folded .dev-screen { border-radius: 8px 36px 36px 8px; }
+.dev-folded::before { content: ""; position: absolute; left: 0; top: 6%; bottom: 6%; width: 6px; border-radius: 3px; background: linear-gradient(90deg, rgba(255,255,255,.28), rgba(255,255,255,0)); pointer-events: none; }
+/* open: one screen with the fold line across the middle */
+.dev-crease { position: absolute; z-index: 3; pointer-events: none; mix-blend-mode: multiply; }
+.dev-open-wide .dev-crease { top: 0; bottom: 0; left: 50%; width: 26px; transform: translateX(-50%); background: linear-gradient(90deg, transparent, rgba(0,0,0,.025) 35%, rgba(0,0,0,.05) 50%, rgba(0,0,0,.025) 65%, transparent); }
+.dev-open-tall .dev-crease { left: 0; right: 0; top: 50%; height: 26px; transform: translateY(-50%); background: linear-gradient(180deg, transparent, rgba(0,0,0,.025) 35%, rgba(0,0,0,.05) 50%, rgba(0,0,0,.025) 65%, transparent); }
 .sf-top { position: absolute; top: 0; left: 0; right: 0; overflow: hidden; display: flex; flex-direction: column; }
 .sf-status { flex: none; height: 26px; padding: 0 28px; display: flex; align-items: center; justify-content: space-between; font: 600 13px/1 var(--font); }
 .sf-status-icons { display: inline-flex; gap: 6px; align-items: center; }

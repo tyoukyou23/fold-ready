@@ -41,7 +41,11 @@ export function DuoFrame({
 }) {
   const g = geometry(pose);
   const o = outer(g);
-  const cls = animate ? "dev dev-anim" : "dev";
+  // The Duo's shape changes with the pose: folded, the hinge is the LEFT edge (tight corners there,
+  // round on the right — the cover folds right → left); open, one big screen with a crease across
+  // its middle (vertical when sideways, horizontal when held upright).
+  const shape = g.col > 0 ? "dev-folded" : g.W > g.H ? "dev-open-wide" : "dev-open-tall";
+  const cls = `dev ${shape}${animate ? " dev-anim" : ""}`;
   const bottom = g.H - g.top - g.vh;
   return (
     <div className={animate ? "dev-slot dev-anim" : "dev-slot"} style={{ width: o.w * scale, height: o.h * scale }}>
@@ -82,6 +86,9 @@ export function DuoFrame({
               {g.safe > 0 && <span className="dev-home" />}
             </div>
           </div>
+
+          {/* open: the fold line across the middle of the inner screen */}
+          {g.col === 0 && <span className="dev-crease" aria-hidden="true" />}
 
           <div className="sf-bottom" style={{ top: g.top + g.vh, width: g.vw, height: Math.max(0, bottom) }} aria-hidden="true">
             {/* Folded: Safari's address pill floats here, below the page (as in the simulator) */}
