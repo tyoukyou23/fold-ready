@@ -4,7 +4,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
  * Fold simulation — what your hand does, and what the page gets.
  *
  * The story (every motion is the consequence of the step before it):
- *   1. You open the phone.           → left: the right half swings open on its hinge.
+ *   1. You open the phone.           → left: the cover (left half, outer screen on its back) swings
+ *                                       open from right to left on the hinge, like a book.
  *   2. Mid-swing, Safari changes screen → right: the page jumps to 466 × 498 — a size that belongs
  *                                       to no pose (measured). The frame outline flashes: "resize".
  *   3. The phone is open.            → right: the page jumps to 951 × 543 and the orientation flips.
@@ -20,6 +21,8 @@ type Size = { w: number; h: number };
 const FOLDED: Size = { w: 382, h: 580 };
 const OPEN: Size = { w: 951, h: 543 };
 const TRANSIENT: Size = { w: 466, h: 498 };
+// folded is the TALLEST page (580) — reserve that, or the folded frame covers the caption
+const MAX_H = Math.max(FOLDED.h, OPEN.h, TRANSIENT.h);
 
 const SWING_MS = 900;
 const TRANSIENT_AT = 380;
@@ -88,20 +91,44 @@ export function FoldSim({ src }: { src: string }) {
       <div className="foldsim-grid">
         <figure className="foldsim-hand">
           <div className={`hinge-stage${open ? " is-open" : ""}${reduced ? " no-motion" : ""}`} aria-hidden="true">
+            {/* Like a book: the outer screen is the front cover (left half, folded over the right half).
+                Opening swings the cover from right to left around the hinge in the middle.
+                Each visual is a consequence (see styles.css "the hand"):
+                  outer screen dims + blurs  → it is switching off, handing the display over
+                  inner screen blurs → sharp → it lights up; it is sharp exactly when the page gets 951 × 543,
+                                               so the 466 × 498 frame happens while nothing is in focus
+                  sheen sweeps the cover      → the glass turns through the light
+                  shadow widens               → the open phone is twice as wide */}
             <div className="book">
-              <div className="leaf leaf-left"><span className="leaf-label">inner screen</span></div>
+              <div className="book-shadow" />
               <div className="leaf leaf-right">
-                <div className="face face-front"><span className="leaf-label">inner screen</span></div>
-                <div className="face face-back"><span className="leaf-label">outer screen</span><span className="face-col" /></div>
+                <div className="dev-frame dev-frame-right">
+                  <div className="dev-glass screen-inner"><MiniDetail /></div>
+                </div>
               </div>
-              <div className="hinge-line" />
+              <div className="leaf leaf-left">
+                <div className="face face-front">
+                  <div className="dev-frame dev-frame-left">
+                    <div className="dev-glass screen-inner"><MiniList /></div>
+                  </div>
+                </div>
+                <div className="face face-back">
+                  <div className="dev-frame dev-frame-outer">
+                    <div className="dev-glass screen-outer">
+                      <MiniDetail compact />
+                      <span className="fmini-safari-col"><i /><i /><i /></span>
+                    </div>
+                  </div>
+                  <span className="sheen" />
+                </div>
+              </div>
             </div>
           </div>
           <figcaption>Your hand · {open ? "open" : "folded"}</figcaption>
         </figure>
 
         <figure className="foldsim-page" ref={colRef}>
-          <div className="foldsim-pagebox" style={{ height: scale ? OPEN.h * scale + 2 : undefined }}>
+          <div className="foldsim-pagebox" style={{ height: scale ? MAX_H * scale + 2 : undefined }}>
             {scale > 0 && (
               // the iframe must never remount — that would be a reload, which a fold never causes
               <div className="foldsim-viewport" style={{ width: size.w * scale, height: size.h * scale }}>
@@ -137,6 +164,27 @@ export function FoldSim({ src }: { src: string }) {
       </div>
       <p className="muted small">Sizes and their order measured in the iPhone Duo simulator (Safari 27). Timing inside the swing is approximate.</p>
     </section>
+  );
+}
+
+/* Tiny stand-ins for the demo inbox, so the hand shows the same layout the page gets:
+   folded → the message fills the outer screen; open → list on the left, message on the right. */
+function MiniList() {
+  return (
+    <div className="fmini fmini-list">
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <div key={i} className={`fmini-row${i === 2 ? " is-on" : ""}`}><i className="fmini-av" /><span><b /><b /></span></div>
+      ))}
+    </div>
+  );
+}
+function MiniDetail({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={`fmini fmini-detail${compact ? " is-compact" : ""}`}>
+      <b className="fmini-h" />
+      <span className="fmini-meta"><i className="fmini-av" /><b /></span>
+      <b /><b /><b className="w80" /><b /><b className="w60" />
+    </div>
   );
 }
 

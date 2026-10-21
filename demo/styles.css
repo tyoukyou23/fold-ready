@@ -473,23 +473,63 @@ a.inbox-org { color: var(--accent); text-decoration: none; min-height: 44px; dis
 .foldsim figure { margin: 0; }
 .foldsim figcaption { margin-top: 8px; font-size: 13px; color: var(--muted); }
 
-/* the hand: a book whose right leaf swings on the hinge */
-.hinge-stage { perspective: 1400px; display: grid; place-items: center; aspect-ratio: 951 / 669; padding: 6%; border-radius: 16px; background: var(--surface-2); }
-.book { position: relative; width: 100%; aspect-ratio: 951 / 669; transform-style: preserve-3d; transform: translateX(25%); transition: transform .9s cubic-bezier(.45,.05,.25,1); }
+/* the hand — every effect is a consequence of the fold (see FoldSim.tsx) */
+.hinge-stage { --swing: .9s; --ease: cubic-bezier(.45,.05,.25,1); perspective: 1600px; display: grid; place-items: center; aspect-ratio: 951 / 669; padding: 7% 7% 9%; border-radius: 16px; background: var(--surface-2); overflow: hidden; }
+.book { position: relative; width: 100%; aspect-ratio: 951 / 669; transform-style: preserve-3d; transform: translateX(-25%); transition: transform var(--swing) var(--ease); }
 .is-open .book { transform: none; }
-.leaf { position: absolute; top: 0; width: 50%; height: 100%; border-radius: 10px; display: grid; place-items: center; }
-.leaf-left { left: 0; background: var(--leaf, #dcdcf7); border: 6px solid var(--device); border-right-width: 2px; border-radius: 12px 4px 4px 12px; }
-.leaf-right { left: 50%; transform-origin: left center; transform-style: preserve-3d; transform: rotateY(-180deg); transition: transform .9s cubic-bezier(.45,.05,.25,1); }
-.is-open .leaf-right { transform: rotateY(0deg); }
-.face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; display: grid; place-items: center; border: 6px solid var(--device); }
-.face-front { background: var(--leaf, #dcdcf7); border-left-width: 2px; border-radius: 4px 12px 12px 4px; }
-.face-back { transform: rotateY(180deg); background: #26262e; border-radius: 12px 4px 4px 12px; color: #c9c9d6; }
-.face-col { position: absolute; top: 0; bottom: 0; right: 0; width: 18%; background: rgba(255,255,255,.08); }
-.leaf-label { font: 600 11px/1 var(--mono); letter-spacing: .02em; color: var(--muted); }
-.face-back .leaf-label { color: #c9c9d6; margin-right: 18%; }
-.hinge-line { position: absolute; left: 50%; top: 4%; bottom: 4%; width: 2px; margin-left: -1px; background: rgba(0,0,0,.25); transform: translateZ(1px); }
-.no-motion .book, .no-motion .leaf-right { transition: none; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --leaf: #2f2f52; } }
+/* the open phone is twice as wide → its shadow widens with it */
+.book-shadow { position: absolute; left: 50%; right: 0; bottom: -7%; height: 10%; border-radius: 50%; background: radial-gradient(closest-side, rgba(0,0,0,.28), transparent); filter: blur(6px); transition: left var(--swing) var(--ease); transform: translateZ(-1px); }
+.is-open .book-shadow { left: 0; }
+.leaf { position: absolute; top: 0; width: 50%; height: 100%; }
+.leaf-right { left: 50%; }
+.leaf-left { left: 0; transform-origin: right center; transform-style: preserve-3d; transform: rotateY(180deg); transition: transform var(--swing) var(--ease); }
+.is-open .leaf-left { transform: rotateY(0deg); }
+.face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.face-back { transform: rotateY(180deg); }
+
+/* titanium-ish frame: dark metal with a thin lit edge, black bezel inside */
+.dev-frame { position: absolute; inset: 0; padding: 3.2%; background: linear-gradient(150deg, #5a5e68 0%, #2a2c32 22%, #17181c 60%, #3b3e46 100%); box-shadow: inset 0 0 0 1px rgba(255,255,255,.18), 0 1px 1px rgba(0,0,0,.25); }
+.dev-frame-left  { border-radius: 9% 1.5% 1.5% 9% / 6.5% 1% 1% 6.5%; padding-right: 0; }
+.dev-frame-right { border-radius: 1.5% 9% 9% 1.5% / 1% 6.5% 6.5% 1%; padding-left: 0; }
+.dev-frame-outer { border-radius: 1.5% 9% 9% 1.5% / 1% 6.5% 6.5% 1%; }
+.dev-glass { position: relative; width: 100%; height: 100%; overflow: hidden; background: #0b0b0d; border-radius: inherit; }
+.dev-frame-left .dev-glass  { border-radius: 7.5% 0 0 7.5% / 5.5% 0 0 5.5%; }
+.dev-frame-right .dev-glass { border-radius: 0 7.5% 7.5% 0 / 0 5.5% 5.5% 0; }
+.dev-frame-outer .dev-glass { border-radius: 1% 7.5% 7.5% 1% / 1% 5.5% 5.5% 1%; }
+
+/* inner screen: off (blurred, dark) while folded; lights up and comes into focus late in the swing,
+   so it is sharp when the page gets its final size — the transient frame happens while it's blurred */
+.screen-inner { filter: blur(10px) brightness(.25) saturate(.6); transition: filter .28s ease-in; }
+.is-open .screen-inner { filter: none; transition: filter .5s cubic-bezier(.2,.7,.2,1) .48s; }
+/* outer screen: on while folded; dims and blurs as the cover turns away (it is switching off) */
+.screen-outer { filter: none; transition: filter .5s cubic-bezier(.2,.7,.2,1) .48s; }
+.is-open .screen-outer { filter: blur(8px) brightness(.3); transition: filter .3s ease-in; }
+
+/* the glass turning through the light: one soft sheen crosses the cover */
+.sheen { position: absolute; inset: 0; border-radius: 1.5% 9% 9% 1.5% / 1% 6.5% 6.5% 1%; pointer-events: none; background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,.22) 48%, transparent 60%); background-size: 260% 100%; background-position: 100% 0; transition: background-position var(--swing) var(--ease); mix-blend-mode: screen; }
+.is-open .sheen { background-position: 0 0; }
+
+/* mini inbox: the same layout the page gets */
+.fmini { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--mini-bg, #f4f4f7); }
+.fmini b { display: block; height: 5px; border-radius: 3px; background: var(--mini-ink, rgba(23,23,26,.22)); }
+.fmini-av { flex: none; width: 13px; height: 13px; border-radius: 50%; background: var(--mini-ink, rgba(23,23,26,.18)); }
+.fmini-list { padding: 8% 0 0; }
+.fmini-row { display: flex; align-items: center; gap: 7px; padding: 6px 8%; border-bottom: 1px solid rgba(0,0,0,.05); }
+.fmini-row span { flex: 1; display: grid; gap: 4px; }
+.fmini-row span b:last-child { width: 70%; opacity: .6; }
+.fmini-row.is-on { background: color-mix(in srgb, var(--accent) 14%, transparent); box-shadow: inset 2px 0 0 var(--accent); }
+.fmini-detail { padding: 10% 10% 0; gap: 7px; border-left: 1px solid rgba(0,0,0,.06); }
+.fmini-detail .fmini-h { height: 8px; width: 70%; background: var(--mini-ink-strong, rgba(23,23,26,.45)); margin-bottom: 4px; }
+.fmini-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.fmini-meta b { width: 40%; }
+.fmini-detail .w80 { width: 80%; } .fmini-detail .w60 { width: 60%; }
+.fmini-detail.is-compact { right: 18%; border-left: 0; }
+.fmini-safari-col { position: absolute; top: 0; right: 0; bottom: 0; width: 18%; background: var(--mini-bg, #f4f4f7); display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 7px; padding-bottom: 12%; border-left: 1px solid rgba(0,0,0,.04); }
+.fmini-safari-col i { width: 46%; aspect-ratio: 1; border-radius: 50%; background: var(--mini-ink, rgba(23,23,26,.14)); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --mini-bg: #1c1c22; --mini-ink: rgba(255,255,255,.18); --mini-ink-strong: rgba(255,255,255,.42); } }
+
+.no-motion .book, .no-motion .leaf-left, .no-motion .book-shadow, .no-motion .sheen,
+.no-motion .screen-inner, .no-motion .screen-outer { transition: none !important; }
 
 /* the page: real-size iframe, scaled; sizes jump, never animate */
 .foldsim-pagebox { display: flex; align-items: flex-start; justify-content: flex-start; }
