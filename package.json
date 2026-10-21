@@ -1,6 +1,6 @@
 {
   "name": "fold-ready",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Make web apps feel native on foldables and wide touch screens (iPhone Duo, iPad, Android foldables): decide by input, not width — docking panes, unfold-safe scroll, visible-viewport units, Safari toolbar tint, and a hover-only audit. Ships Safari measurements of iPhone Duo.",
   "license": "MIT",
   "author": "tyoukyou23",

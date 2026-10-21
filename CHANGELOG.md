@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2 — 2026-10-21
+
+- `KeepPlace` / `useKeepPlace`: `topInset: "auto"` measures the fixed / sticky bars covering the top **right now** — a header plus whatever is stuck below it (a section nav), followed down the stack. Only bars ≥ 90% of the view's width count (a sticky map column doesn't), capped at half the view; for a scroll container its own fixed ancestors (a drawer) are skipped. It is also the new default when no `scroll-padding-top` is set. Found adapting a school site whose header is 57 px below 600 px and 65 px above, with a section nav (50 px) only below 900 px: no single `scroll-padding-top` was right, and a global one would have doubled every existing `scroll-margin-top`. Verified in Chrome: unfolding 382 → 669 and back keeps the paragraph being read at the same offset below the nav. `measureTopChrome(view, within?)` exported.
+
 ## 0.1.1 — 2026-10-21
 
 - `auditHoverOnly` reports only elements that are hidden right now (opacity ≈ 0, `visibility: hidden`, `display: none`, zero height). Hover dimming (`hover:opacity-80`) and rules that match nothing on the page are no longer listed — they're counted in the new `ignoredRules`. Found by running the Inspector on a real Tailwind app, where every compiled `hover:` utility was being reported.

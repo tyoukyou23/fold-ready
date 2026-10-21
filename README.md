@@ -130,6 +130,8 @@ html { scroll-padding-top: var(--header-h); }   /* once, for the whole site */
 
 Or pass it: `<KeepPlace document topInset={61} />` — a function if the header collapses.
 
+Header height changes with the breakpoint, or a section nav sticks below it only on phones? Leave `scroll-padding-top` unset (or pass `topInset="auto"`): the bars covering the top are measured at each step — stacked bars included, narrow sticky columns ignored.
+
 ## Safari toolbar colour
 
 Safari ignores `theme-color` for its toolbars and samples the page edge instead. On the folded Duo it samples the **right** edge — your page colour never reaches that column. Measured: an 8 px fixed strip on the right edge paints the whole column and causes **no** horizontal scroll (the old workaround widened the page, which did).

@@ -221,3 +221,59 @@ describe("<KeepPlace>", () => {
     act(() => root.unmount());
   });
 });
+
+describe("measureTopChrome", () => {
+  const view = { top: 0, bottom: 600, left: 0, width: 400 };
+  let els: Record<string, HTMLElement>;
+  let orig: typeof document.elementFromPoint | undefined;
+
+  // header 0–64 (sticky, full width), section nav 64–114 (sticky), a sticky map column 0–500 (half width)
+  function layout(withNav: boolean, mapUnder = false) {
+    document.body.innerHTML = "";
+    const header = document.createElement("header");
+    header.style.position = "sticky";
+    const nav = document.createElement("nav");
+    nav.style.position = "sticky";
+    const map = document.createElement("div");
+    map.style.position = "sticky";
+    const text = document.createElement("p");
+    document.body.append(header, nav, map, text);
+    els = { header, nav, map, text };
+    const rects = new Map<Element, DOMRect>([
+      [header, rect(0, 64, 400)],
+      [nav, rect(64, 50, 396)],
+      [map, rect(0, 500, 200)],
+      [text, rect(0, 600, 400)],
+    ]);
+    for (const [el, r] of rects) el.getBoundingClientRect = () => r;
+    orig = document.elementFromPoint;
+    document.elementFromPoint = ((_x: number, y: number) => {
+      if (mapUnder) return map;
+      if (y < 64) return header;
+      if (withNav && y < 114) return nav;
+      return text;
+    }) as typeof document.elementFromPoint;
+  }
+  afterEach(() => { if (orig) document.elementFromPoint = orig; document.body.innerHTML = ""; });
+
+  it("follows stacked bars down: header + section nav", async () => {
+    const { measureTopChrome } = await import("../src/keep-place");
+    layout(true);
+    expect(measureTopChrome(view)).toBe(114);
+    layout(false);
+    expect(measureTopChrome(view)).toBe(64);
+  });
+
+  it("ignores a sticky column narrower than the view", async () => {
+    const { measureTopChrome } = await import("../src/keep-place");
+    layout(false, true);
+    expect(measureTopChrome(view)).toBe(0);
+  });
+
+  it("skips fixed ancestors of the scroller (a drawer is not a bar over its own content)", async () => {
+    const { measureTopChrome } = await import("../src/keep-place");
+    layout(false);
+    els.header.append(els.text); // the scroller lives inside the sticky element
+    expect(measureTopChrome(view, els.text)).toBe(0);
+  });
+});

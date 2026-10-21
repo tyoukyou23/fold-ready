@@ -92,6 +92,8 @@ html { scroll-padding-top: var(--header-h); }
 
 直接渡すこともできます: `<KeepPlace document topInset={61} />`（ヘッダーが縮むなら関数で）。
 
+ヘッダーの高さが画面幅で変わる・携帯だけ章の帯がその下に貼り付く、という場合は `scroll-padding-top` を書かずに（または `topInset="auto"`）。上を覆っている固定・sticky の帯をその都度測ります（重なった帯もたどり、幅の狭い sticky の列は数えません）。
+
 ### Next.js App Router / Server Components
 
 本体は `"use client"` 付きなので、Server Component のレイアウトからそのまま置けます（`<ToolbarTint>`・`<KeepPlace document />`・`<ViewportVars />`）。`fold-ready/devices` と `fold-ready/tailwind` はただのデータで client module ではないので、Server Component で `IPHONE_DUO` を読めば数値がそのまま手に入ります。

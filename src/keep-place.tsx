@@ -99,7 +99,7 @@ export function firstBelowEdge(count: number, bottomAt: (i: number) => number, e
 
 /* ─── scroller abstraction ────────────────────────────────────────────────────────────── */
 
-interface View { top: number; bottom: number; left: number; width: number }
+export interface View { top: number; bottom: number; left: number; width: number }
 
 interface Scroller {
   /** Element that contains the content (searched for anchors). */
@@ -169,6 +169,53 @@ export function readScrollPaddingTop(el: Element): number {
     const v = parseFloat(window.getComputedStyle(el).scrollPaddingTop);
     return Number.isFinite(v) && v > 0 ? v : 0;
   } catch { return 0; }
+}
+
+/** Bars narrower than this share of the view are columns (a sticky map, a side nav), not headers. */
+const MIN_BAR_SHARE = 0.9;
+/** Never treat more than this share of the view as covered — a full-screen overlay is not a header. */
+const MAX_CHROME_SHARE = 0.5;
+
+function stuckBarAt(x: number, y: number, view: View, within?: Element): Element | null {
+  let hit: Element | null = null;
+  try { hit = document.elementFromPoint(x, y); } catch { hit = null; }
+  // Walk up to (not into) the scroller: a fixed drawer that *contains* the scroller is not a bar over it.
+  while (hit && hit !== document.body && hit !== document.documentElement && !(within && hit.contains(within))) {
+    const s = styleOf(hit);
+    if (s && (s.position === "fixed" || s.position === "sticky")) {
+      const r = hit.getBoundingClientRect();
+      if (r.width >= view.width * MIN_BAR_SHARE && r.top <= y && r.bottom > y) return hit;
+    }
+    hit = hit.parentElement;
+  }
+  return null;
+}
+
+/**
+ * Px at the top of `view` covered by fixed / sticky bars, measured now: a header, and whatever
+ * is stuck right below it (a section nav, a tab bar) — stacked bars are followed down.
+ * Only bars at least 90% as wide as the view count, so a sticky map or side column doesn't.
+ * Capped at half the view. 0 when nothing covers the top (or `elementFromPoint` is missing).
+ * `within`: the scroller, for a scroll container — its own fixed / sticky ancestors are skipped.
+ *
+ * This is what `topInset: "auto"` uses. Unlike `scroll-padding-top` it follows bars that
+ * appear, collapse or change height with the breakpoint — e.g. a 56 px header that is 64 px
+ * from 600 px up, plus a section nav that only exists below 900 px.
+ */
+export function measureTopChrome(view: View, within?: Element): number {
+  if (typeof document === "undefined" || typeof document.elementFromPoint !== "function") return 0;
+  const limit = view.top + (view.bottom - view.top) * MAX_CHROME_SHARE;
+  const x = view.left + view.width / 2;
+  let y = view.top;
+  for (let i = 0; i < 6; i++) {
+    const bar = stuckBarAt(x, y + 1, view, within);
+    if (!bar) break;
+    const bottom = bar.getBoundingClientRect().bottom;
+    if (bottom <= y + 0.5) break;
+    y = Math.min(bottom, limit);
+    if (y >= limit) break;
+  }
+  return Math.max(0, y - view.top);
 }
 
 /* ─── anchor search ───────────────────────────────────────────────────────────────────── */
@@ -289,11 +336,14 @@ export interface KeepPlaceOptions {
   /**
    * Px at the top of the scroller covered by sticky headers / tab bars. The reading position is
    * taken just below them, so what the user was actually reading is what comes back.
-   * Default: the scroller's CSS `scroll-padding-top` (for `document`, the `<html>` element's) —
-   * set `html { scroll-padding-top: <header height> }` once and anchor links benefit too.
-   * Pass a function when it changes (e.g. a header that collapses).
+   *
+   * Default: the scroller's CSS `scroll-padding-top` (for `document`, the `<html>` element's)
+   * when it is set; otherwise `"auto"`.
+   * `"auto"`: measure the fixed / sticky bars covering the top right now (`measureTopChrome`) —
+   * follows headers that change height with the breakpoint and section navs stuck below them.
+   * A number, or a function when you know better (e.g. a header that collapses).
    */
-  topInset?: number | (() => number);
+  topInset?: number | "auto" | (() => number);
 }
 
 const raf = (cb: () => void): number =>
@@ -331,7 +381,10 @@ export function useKeepPlace(ref?: RefObject<HTMLElement> | null, options: KeepP
 
     const inset = (): number => {
       const t = topInset.current;
-      const v = typeof t === "function" ? t() : typeof t === "number" ? t : readScrollPaddingTop(sc.self);
+      const v = typeof t === "function" ? t()
+        : typeof t === "number" ? t
+        : t === "auto" ? measureTopChrome(sc.view(), el || undefined)
+        : readScrollPaddingTop(sc.self) || measureTopChrome(sc.view(), el || undefined);
       return Number.isFinite(v) && v > 0 ? v : 0;
     };
 
