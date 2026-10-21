@@ -29,6 +29,7 @@ All poses: `(pointer: coarse)`, no hover. Folding fires `resize` — no reload. 
 Two things we found that nobody had written down:
 - **Half-folding is invisible to the web.** Safari moves to the outer screen and the page gets exactly the folded pose (382 × 580) — no tabletop mode, no posture event.
 - **One fold fires 2–3 resizes through sizes that belong to no pose** (466 × 498, 382 × 498). React to each one and your layout flashes. fold-ready's `SplitHost` waits for the size to settle; `useSettledViewport()` does the same for your code.
+
 *Measured in the iPhone Duo simulator (Xcode 27.1), 2026-10-21. Hardware check coming — [contribute your measurements](https://tyoukyou23.github.io/fold-ready/#/measure).*
 
 **fold-ready's rules:** decide by **input**, not width · measure **containers**, not the window · never sniff the device · leave mouse users' experience unchanged unless you opt in.
