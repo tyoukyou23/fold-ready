@@ -11,6 +11,7 @@
  *
  *   1. While the user scrolls (passive, rAF-throttled) it remembers an anchor — the first block
  *      crossing the top edge of the visible area — and how far that block sits from the edge.
+ *      The edge sits below sticky headers: `topInset`, or the scroller's `scroll-padding-top`.
  *   2. When the scroller's size changes (width by ≥ 1px, or height by a lot — rotation), it waits
  *      for layout to settle and scrolls so the anchor is back at the same distance from the top.
  *      It does this twice (next frame and the one after) because some engines reflow late.
@@ -153,9 +154,21 @@ function visibleBottom(view: View): number {
   return Math.min(view.bottom, vvBottom);
 }
 
-function visibleTop(view: View): number {
+function visibleTop(view: View, inset = 0): number {
   const vv = typeof window !== "undefined" ? window.visualViewport : undefined;
-  return Math.max(view.top, vv ? vv.offsetTop : 0);
+  return Math.max(view.top + inset, vv ? vv.offsetTop : 0);
+}
+
+/**
+ * The scroller's `scroll-padding-top` in px (0 for `auto` or anything unparsable).
+ * It is the CSS-native way a page says "a sticky header covers this much of the top" —
+ * the same value that keeps `#anchor` jumps and `scrollIntoView()` clear of the header.
+ */
+export function readScrollPaddingTop(el: Element): number {
+  try {
+    const v = parseFloat(window.getComputedStyle(el).scrollPaddingTop);
+    return Number.isFinite(v) && v > 0 ? v : 0;
+  } catch { return 0; }
 }
 
 /* ─── anchor search ───────────────────────────────────────────────────────────────────── */
@@ -187,9 +200,9 @@ function fromMarked(sc: Scroller, edge: number): Element | null {
   return i < 0 ? null : list[i];
 }
 
-function fromPoint(sc: Scroller, view: View): Element | null {
+function fromPoint(sc: Scroller, view: View, edge: number): Element | null {
   if (typeof document.elementFromPoint !== "function") return null;
-  const y = view.top + 4;
+  const y = edge + 4;
   const xs = [view.left + view.width / 2, view.left + Math.min(24, view.width / 4)];
   for (const x of xs) {
     let hit: Element | null = null;
@@ -221,10 +234,11 @@ function fromWalk(sc: Scroller, edge: number): Element | null {
   return best;
 }
 
-function findAnchor(sc: Scroller): Anchor | null {
+/** `inset`: px at the top hidden by sticky headers — the reading edge sits below them. */
+function findAnchor(sc: Scroller, inset = 0): Anchor | null {
   const view = sc.view();
-  const edge = view.top;
-  const el = fromMarked(sc, edge) || fromPoint(sc, view) || fromWalk(sc, edge);
+  const edge = view.top + inset;
+  const el = fromMarked(sc, edge) || fromPoint(sc, view, edge) || fromWalk(sc, edge);
   if (!el) return null;
   return { el, offset: el.getBoundingClientRect().top - edge };
 }
@@ -272,6 +286,14 @@ export interface KeepPlaceOptions {
   enabled?: boolean;
   /** Called after each restore that moved something. */
   onRestore?: (info: KeepPlaceRestoreInfo) => void;
+  /**
+   * Px at the top of the scroller covered by sticky headers / tab bars. The reading position is
+   * taken just below them, so what the user was actually reading is what comes back.
+   * Default: the scroller's CSS `scroll-padding-top` (for `document`, the `<html>` element's) —
+   * set `html { scroll-padding-top: <header height> }` once and anchor links benefit too.
+   * Pass a function when it changes (e.g. a header that collapses).
+   */
+  topInset?: number | (() => number);
 }
 
 const raf = (cb: () => void): number =>
@@ -289,6 +311,8 @@ export function useKeepPlace(ref?: RefObject<HTMLElement> | null, options: KeepP
   const { enabled = true } = options;
   const onRestore = useRef(options.onRestore);
   onRestore.current = options.onRestore;
+  const topInset = useRef(options.topInset);
+  topInset.current = options.topInset;
   const isDocument = !ref;
 
   useEffect(() => {
@@ -305,8 +329,14 @@ export function useKeepPlace(ref?: RefObject<HTMLElement> | null, options: KeepP
     let recordPending = false;
     let restoreFrame = 0;
 
+    const inset = (): number => {
+      const t = topInset.current;
+      const v = typeof t === "function" ? t() : typeof t === "number" ? t : readScrollPaddingTop(sc.self);
+      return Number.isFinite(v) && v > 0 ? v : 0;
+    };
+
     const record = () => {
-      const a = findAnchor(sc);
+      const a = findAnchor(sc, inset());
       if (a) anchor = a;
     };
 
@@ -321,14 +351,14 @@ export function useKeepPlace(ref?: RefObject<HTMLElement> | null, options: KeepP
         if (caret && caret.el === field) restoreCaret(caret);
         const view = sc.view();
         const r = field.getBoundingClientRect();
-        const d = computeRevealDelta(r.top, r.bottom, visibleTop(view), visibleBottom(view));
+        const d = computeRevealDelta(r.top, r.bottom, visibleTop(view, inset()), visibleBottom(view));
         if (d) sc.setScrollTop(sc.getScrollTop() + d);
         return { el: field, delta: d };
       }
       const a = anchor;
       if (!a || !a.el.isConnected || !sc.content.contains(a.el)) return null;
       const cur = sc.getScrollTop();
-      const target = computeRestoreScrollTop(a.offset, a.el.getBoundingClientRect().top, sc.view().top, cur);
+      const target = computeRestoreScrollTop(a.offset, a.el.getBoundingClientRect().top, sc.view().top + inset(), cur);
       const d = target - cur;
       if (Math.abs(d) < 1) return { el: a.el, delta: 0 };
       sc.setScrollTop(target);
@@ -436,14 +466,14 @@ export interface KeepPlaceProps extends HTMLAttributes<HTMLElement>, KeepPlaceOp
   children?: ReactNode;
 }
 
-function KeepDocumentPlace({ children, enabled, onRestore }: { children?: ReactNode } & KeepPlaceOptions) {
-  useKeepPlace(null, { enabled, onRestore });
+function KeepDocumentPlace({ children, enabled, onRestore, topInset }: { children?: ReactNode } & KeepPlaceOptions) {
+  useKeepPlace(null, { enabled, onRestore, topInset });
   return createElement(Fragment, null, children);
 }
 
-function KeepElementPlace({ as = "div", children, enabled, onRestore, ...rest }: Omit<KeepPlaceProps, "document">) {
+function KeepElementPlace({ as = "div", children, enabled, onRestore, topInset, ...rest }: Omit<KeepPlaceProps, "document">) {
   const ref = useRef<HTMLElement>(null);
-  useKeepPlace(ref, { enabled, onRestore });
+  useKeepPlace(ref, { enabled, onRestore, topInset });
   return createElement(as, { ...rest, ref }, children);
 }
 
@@ -459,7 +489,7 @@ function KeepElementPlace({ as = "div", children, enabled, onRestore, ...rest }:
  */
 export function KeepPlace({ document: isDocument, ...props }: KeepPlaceProps) {
   if (isDocument) {
-    return createElement(KeepDocumentPlace, { enabled: props.enabled, onRestore: props.onRestore }, props.children);
+    return createElement(KeepDocumentPlace, { enabled: props.enabled, onRestore: props.onRestore, topInset: props.topInset }, props.children);
   }
   return createElement(KeepElementPlace, props);
 }

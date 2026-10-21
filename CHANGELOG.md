@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.1 — 2026-10-21
+
+- `auditHoverOnly` reports only elements that are hidden right now (opacity ≈ 0, `visibility: hidden`, `display: none`, zero height). Hover dimming (`hover:opacity-80`) and rules that match nothing on the page are no longer listed — they're counted in the new `ignoredRules`. Found by running the Inspector on a real Tailwind app, where every compiled `hover:` utility was being reported.
+- `KeepPlace` / `useKeepPlace` take the reading position **below sticky headers**: new `topInset` option (number or function); by default the scroller's CSS `scroll-padding-top` (for `document`, `<html>`'s). Before, on a page with a sticky header the anchor was the block hidden behind it, so an unfold could land a few lines off. Found adapting a Next.js dashboard with a 61 px sticky header. `readScrollPaddingTop()` exported.
+- `fold-ready/tailwind.css`: Tailwind v4 users `@import "fold-ready/tailwind.css"` instead of pasting three `@custom-variant` lines. A test keeps it in sync with the v3 plugin.
+- Only the main entry is a client module now. `"use client"` was also on `fold-ready/devices` and `fold-ready/tailwind`, so importing `IPHONE_DUO` in a React Server Component gave a client reference instead of the data.
+- `package.json` `sideEffects` lists `*.css` (was `false`).
+
 ## 0.1.0 — 2026-10-21
 
 First release, ahead of the iPhone Duo launch (2026-10-23).

@@ -122,6 +122,14 @@ import { KeepPlace } from "fold-ready";
 
 Mark preferred anchors with `data-keep-anchor`. Hook form: `useKeepPlace(ref)`.
 
+**Sticky header?** The reading position is taken just below it, so what comes back is what the user was actually reading — not the block hidden behind the header. By default `KeepPlace` reads the scroller's `scroll-padding-top` (for `document`, the `<html>` element's), which also keeps `#anchor` jumps clear of the header:
+
+```css
+html { scroll-padding-top: var(--header-h); }   /* once, for the whole site */
+```
+
+Or pass it: `<KeepPlace document topInset={61} />` — a function if the header collapses.
+
 ## Safari toolbar colour
 
 Safari ignores `theme-color` for its toolbars and samples the page edge instead. On the folded Duo it samples the **right** edge — your page colour never reaches that column. Measured: an 8 px fixed strip on the right edge paints the whole column and causes **no** horizontal scroll (the old workaround widened the page, which did).
@@ -174,13 +182,16 @@ module.exports = { plugins: [require("fold-ready/tailwind").default] };
 <header class="py-6 short:py-2">…</header>
 ```
 
-Tailwind v4:
+Tailwind v4 (CSS-first) — one import, same variants:
 
 ```css
-@custom-variant can-hover (@media (hover: hover) and (pointer: fine));
-@custom-variant touch (@media (pointer: coarse));
-@custom-variant short (@media (max-height: 600px));
+@import "tailwindcss";
+@import "fold-ready/tailwind.css";
 ```
+
+## Next.js App Router / Server Components
+
+The main entry is a client module (`"use client"`), so components and hooks can be rendered straight from a Server Component layout — `<ToolbarTint>`, `<KeepPlace document />`, `<ViewportVars />`. `fold-ready/devices` and `fold-ready/tailwind` are plain data, not client modules: import `IPHONE_DUO` in a Server Component and you get the numbers, not a client reference.
 
 ## Measurements
 

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createRoot, type Root } from "react-dom/client";
 import { act } from "react";
 import {
-  KeepPlace, computeRestoreScrollTop, computeRevealDelta, firstBelowEdge, isReflowingResize,
+  KeepPlace, computeRestoreScrollTop, computeRevealDelta, firstBelowEdge, isReflowingResize, readScrollPaddingTop,
 } from "../src/keep-place";
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -130,6 +130,34 @@ describe("<KeepPlace>", () => {
       act(() => root.unmount());
     });
   }
+
+  // A sticky header covers the top 100px: the user is reading row 3 (50–150), not row 2, which is
+  // hidden behind it. Row 3 sits 50px above the reading edge (100) → after unfolding (50px rows,
+  // row 3 at 150 − st) the edge must again cut it 50px down: st = 100. Without the inset: 150.
+  for (const how of ["topInset", "scroll-padding-top"] as const) {
+    it(`reads below a sticky header (${how})`, () => {
+      const onRestore = vi.fn();
+      const props = how === "topInset" ? { topInset: 100 } : { style: { scrollPaddingTop: "100px" } };
+      const { root, host } = mount(<KeepPlace data-testid="scroller" onRestore={onRestore} {...props}>{rows(true)}</KeepPlace>);
+      const sc = host.querySelector<HTMLElement>("[data-testid=scroller]")!;
+      sc.scrollTop = 250;
+      act(() => { sc.dispatchEvent(new Event("scroll")); });
+      state.width = 800;
+      act(() => { roCallbacks.forEach((f) => f()); });
+      expect(onRestore.mock.calls[0][0].anchor).toBe(sc.querySelector("[data-row='3']"));
+      expect(sc.scrollTop).toBe(100);
+      act(() => root.unmount());
+    });
+  }
+
+  it("readScrollPaddingTop: px value, 0 for auto", () => {
+    const a = document.createElement("div");
+    a.style.scrollPaddingTop = "61px";
+    const b = document.createElement("div");
+    document.body.append(a, b);
+    expect(readScrollPaddingTop(a)).toBe(61);
+    expect(readScrollPaddingTop(b)).toBe(0);
+  });
 
   it("ignores size changes that don't reflow (small height change)", () => {
     const { root, host } = mount(<KeepPlace data-testid="scroller">{rows(true)}</KeepPlace>);

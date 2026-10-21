@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   auditBreakpoints, auditHoverOnly, auditRuntime, scanSourceForUaSniffing, stripHover,
 } from "../src/audit";
@@ -43,11 +43,34 @@ describe("auditHoverOnly", () => {
     document.body.innerHTML = `<div class="group"><button class="sm:opacity-0 group-hover:opacity-100">edit</button></div>`;
     css(`@media (min-width: 640px){ .sm\\:opacity-0{opacity:0} }
 .group:hover .group-hover\\:opacity-100{opacity:1}`);
+    // jsdom ignores @media when computing styles; a real ≥640px browser has the button at opacity 0
+    const real = window.getComputedStyle.bind(window);
+    const spy = vi.spyOn(window, "getComputedStyle").mockImplementation((el: Element) => {
+      const cs = real(el);
+      return el.tagName === "BUTTON" ? ({ ...cs, opacity: "0" } as CSSStyleDeclaration) : cs;
+    });
     const { findings } = auditHoverOnly(document);
+    spy.mockRestore();
     expect(findings).toHaveLength(1);
     expect(findings[0].severity).toBe("high");
     expect(findings[0].hiddenBy?.media).toContain("640px");
     expect(findings[0].elements).toBe(1);
+  });
+
+  it("ignores hover effects on elements that are already visible (dimming is not revealing)", () => {
+    document.body.innerHTML = `<a class="dim">link</a>`;
+    css(`.dim:hover{opacity:.8}`);
+    const r = auditHoverOnly(document);
+    expect(r.findings).toHaveLength(0);
+    expect(r.ignoredRules).toBe(1);
+  });
+
+  it("counts, but does not list, rules that match nothing on this page", () => {
+    document.body.innerHTML = `<p>nothing here</p>`;
+    css(`.group:hover .group-hover\\:flex{display:flex}`);
+    const r = auditHoverOnly(document);
+    expect(r.findings).toHaveLength(0);
+    expect(r.ignoredRules).toBe(1);
   });
 
   it("strips :hover in compound and complex selectors", () => {

@@ -251,6 +251,9 @@ function AuditView({ result }: { result: AuditResult }) {
           )}
         </div>
       )}
+      {hover.ignoredRules > 0 && (
+        <p className="fr-insp-small">{hover.ignoredRules} other :hover rules checked — nothing hidden on this page uses them.</p>
+      )}
       {skipped.length > 0 && <p className="fr-insp-small">Skipped (cross-origin): {skipped.join(", ")}</p>}
     </div>
   );

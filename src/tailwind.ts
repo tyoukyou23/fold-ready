@@ -10,10 +10,9 @@
  * Hide hover-revealed controls with `can-hover:` — never with a width prefix like `sm:`.
  * Width says nothing about hover: an unfolded iPhone Duo is 951 px wide and has none.
  *
- * Tailwind v4 (CSS-first) — paste instead:
- *   @custom-variant can-hover (@media (hover: hover) and (pointer: fine));
- *   @custom-variant touch (@media (pointer: coarse));
- *   @custom-variant short (@media (max-height: 600px));
+ * Tailwind v4 (CSS-first) — import the same variants from CSS instead:
+ *   @import "fold-ready/tailwind.css";
+ * (../tailwind.css; tests/tailwind.test.ts keeps it in sync with VARIANTS below.)
  */
 type AddVariant = (name: string, definition: string) => void;
 

@@ -1,6 +1,6 @@
 {
   "name": "fold-ready",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Make web apps feel native on foldables and wide touch screens (iPhone Duo, iPad, Android foldables): decide by input, not width — docking panes, unfold-safe scroll, visible-viewport units, Safari toolbar tint, and a hover-only audit. Ships Safari measurements of iPhone Duo.",
   "license": "MIT",
   "author": "tyoukyou23",
@@ -24,7 +24,9 @@
     "tailwind"
   ],
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "*.css"
+  ],
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -43,16 +45,18 @@
       "types": "./dist/devices.d.ts",
       "import": "./dist/devices.js",
       "require": "./dist/devices.cjs"
-    }
+    },
+    "./tailwind.css": "./tailwind.css"
   },
   "files": [
     "dist",
+    "tailwind.css",
     "README.md",
     "README.ja.md",
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsup",
     "prepare": "npm run build",
     "prepublishOnly": "npm run typecheck && npm test",
     "dev": "vite demo",

@@ -1,0 +1,14 @@
+/*
+ * fold-ready — Tailwind CSS v4 variants (CSS-first config).
+ *
+ *   @import "tailwindcss";
+ *   @import "fold-ready/tailwind.css";
+ *
+ *   <button class="opacity-100 can-hover:opacity-0 can-hover:group-hover:opacity-100">Edit</button>
+ *   <header class="py-6 short:py-2">…</header>
+ *
+ * Same definitions as the v3 plugin (fold-ready/tailwind) — kept in sync by tests/tailwind.test.ts.
+ */
+@custom-variant can-hover (@media (hover: hover) and (pointer: fine));
+@custom-variant touch (@media (pointer: coarse));
+@custom-variant short (@media (max-height: 600px));

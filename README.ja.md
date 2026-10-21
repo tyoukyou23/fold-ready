@@ -47,7 +47,7 @@ iPhone Duo の Safari が実際にページへ渡す大きさ（画面 ÷ 3 で�
 | `ToolbarTint` | 閉じた Duo の**右の列を自分の色に**。横スクロールは起きない（実測） |
 | `useVisibleViewport` | キーボード込みで「実際に見えている高さ」。JS でも CSS 変数でも |
 | `FoldReadyInspector` | 開発用の小窓。今のモード・指のふり・**hover でしか出ない操作の検出**・断点の落ちどころ |
-| `fold-ready/tailwind` | `can-hover:` `touch:` `short:` |
+| `fold-ready/tailwind` | `can-hover:` `touch:` `short:`（v3 プラグイン。v4 は `fold-ready/tailwind.css`） |
 | `fold-ready/devices` | 上の実測値をデータで |
 | [Duo Lab](https://tyoukyou23.github.io/fold-ready/#/lab) | 任意の URL を 3 つの姿勢で同時に表示し、開く様子を再生 |
 
@@ -74,6 +74,27 @@ function Inbox({ mails }) {
 <!-- マウスでは hover で出し、指では常に出す —— 幅に関係なく -->
 <button class="opacity-100 can-hover:opacity-0 can-hover:group-hover:opacity-100">編集</button>
 ```
+
+### Tailwind v4
+
+```css
+@import "tailwindcss";
+@import "fold-ready/tailwind.css";   /* can-hover: touch: short: が使えるようになる */
+```
+
+### 吸着ヘッダーがある時の KeepPlace
+
+読んでいた位置は**ヘッダーのすぐ下**で取ります（ヘッダーに隠れている部分ではなく）。既定ではスクロール容器の `scroll-padding-top`（`document` なら `<html>` の値）を読むので、サイト全体で 1 行書けば `#アンカー` 移動もヘッダーに隠れなくなります。
+
+```css
+html { scroll-padding-top: var(--header-h); }
+```
+
+直接渡すこともできます: `<KeepPlace document topInset={61} />`（ヘッダーが縮むなら関数で）。
+
+### Next.js App Router / Server Components
+
+本体は `"use client"` 付きなので、Server Component のレイアウトからそのまま置けます（`<ToolbarTint>`・`<KeepPlace document />`・`<ViewportVars />`）。`fold-ready/devices` と `fold-ready/tailwind` はただのデータで client module ではないので、Server Component で `IPHONE_DUO` を読めば数値がそのまま手に入ります。
 
 ---
 

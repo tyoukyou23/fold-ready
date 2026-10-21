@@ -37,6 +37,12 @@ export interface HoverOnlyFinding {
 
 export interface HoverAudit {
   findings: HoverOnlyFinding[];
+  /**
+   * `:hover` reveal rules that matched nothing hidden on this page — either no element matches
+   * (a utility CSS framework ships every class) or the matches are already visible
+   * (`hover:opacity-80` dims, it doesn't reveal). Counted, not listed.
+   */
+  ignoredRules: number;
   /** Stylesheets that could not be read (cross-origin without CORS). */
   skippedSheets: string[];
 }
@@ -260,7 +266,7 @@ function safeMatches(el: Element, selector: string): boolean {
  * `(pointer: fine)`. A finger cannot hover, so whatever they reveal is unreachable on touch.
  */
 export function auditHoverOnly(doc: Document | undefined = typeof document === "undefined" ? undefined : document): HoverAudit {
-  if (!doc) return { findings: [], skippedSheets: [] };
+  if (!doc) return { findings: [], ignoredRules: 0, skippedSheets: [] };
   const { sheets, skipped } = readSheets(doc);
 
   const hoverRules: { selector: string; reveals: string[]; sheet: string }[] = [];
@@ -286,10 +292,15 @@ export function auditHoverOnly(doc: Document | undefined = typeof document === "
     });
   }
 
-  const findings: HoverOnlyFinding[] = hoverRules.map((h) => {
+  let ignoredRules = 0;
+  const view = doc.defaultView;
+  const findings: HoverOnlyFinding[] = [];
+  for (const h of hoverRules) {
     const stripped = splitSelectorList(h.selector).map(stripHover).join(", ");
-    const els = safeQueryAll(doc, stripped);
     const revealed = new Set(h.reveals.map(propOf));
+    // Only elements that are hidden RIGHT NOW (unhovered) can be "revealed" by hover.
+    const els = safeQueryAll(doc, stripped).filter((el, i) => i < 500 && isHiddenNow(el, revealed, view));
+    if (!els.length) { ignoredRules++; continue; }
     let hiddenBy: HoverOnlyFinding["hiddenBy"];
     outer: for (const hide of hideRules) {
       if (!hide.props.some((p) => revealed.has(p))) continue;
@@ -305,14 +316,28 @@ export function auditHoverOnly(doc: Document | undefined = typeof document === "
       severity: hiddenBy ? "high" : "medium",
     };
     if (hiddenBy) finding.hiddenBy = hiddenBy;
-    return finding;
-  });
+    findings.push(finding);
+  }
 
   findings.sort((a, b) => (a.severity === b.severity ? b.elements - a.elements : a.severity === "high" ? -1 : 1));
-  return { findings, skippedSheets: skipped };
+  return { findings, ignoredRules, skippedSheets: skipped };
 }
 
 /** Elements a finding refers to (selector with `:hover` removed). For highlighting. */
+/** Is `el` currently hidden in one of the ways the hover rule would undo? */
+function isHiddenNow(el: Element, props: Set<string>, view: (Window & typeof globalThis) | null): boolean {
+  if (!view || typeof view.getComputedStyle !== "function") return true; // can't tell → keep (old behaviour)
+  const cs = view.getComputedStyle(el);
+  if (props.has("opacity") && parseFloat(cs.opacity || "1") < 0.1) return true;
+  if (props.has("visibility") && cs.visibility === "hidden") return true;
+  if (props.has("display") && cs.display === "none") return true;
+  if (props.has("max-height") && parseFloat(cs.maxHeight) === 0) return true;
+  if (props.has("height") && parseFloat(cs.height) === 0) return true;
+  if (props.has("pointer-events") && cs.pointerEvents === "none") return true;
+  if (props.has("transform") && props.size === 1) return true; // transform-only reveals: can't judge, keep
+  return false;
+}
+
 export function elementsForFinding(finding: Pick<HoverOnlyFinding, "selector">, doc: Document | undefined = typeof document === "undefined" ? undefined : document): Element[] {
   if (!doc) return [];
   return safeQueryAll(doc, splitSelectorList(finding.selector).map(stripHover).join(", "));
